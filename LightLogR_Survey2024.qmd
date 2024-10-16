@@ -1,11 +1,110 @@
 ---
-title: "LightLogR_Survey2024"
+title: "LightLogR Community Survey 2024"
+author: "Johannes Zauner"
+format: html
 ---
 
-## Quarto
+## Import
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+```{r, import}
+library(readxl)
+library(cowplot)
+library(tidyverse)
+survey_data <- read_excel("LightLogR Development Community Survey.xlsx", 
+    col_names = FALSE, skip = 2, na = c("", "N/A"))
 
-```{r}
-1 + 1
+```
+
+```{r, field originating}
+#preselect columns
+field_originating <- survey_data %>% select(5:15)
+
+#reformat to long and drop na
+field_originating <- 
+  field_originating %>% 
+  pivot_longer(cols = everything(), 
+    names_to = "question", values_to = "answer"
+    ) %>% 
+  select(answer) %>% 
+  drop_na()
+
+#create a factor and visualize as a vertical histogram
+field_originating %>% 
+  mutate(answer = fct_infreq(answer) %>% fct_rev()) %>% 
+  ggplot(aes(x = answer)) +
+  geom_bar() + 
+  theme_cowplot() +
+  coord_flip() + 
+  labs(x = NULL, caption = "n=33", title = "Which field(s) of scientific research or work you are involved in?")+
+  theme(plot.title.position = "plot")
+
+ggsave("figures/01_field.pdf")
+
+```
+
+```{r, expertise}
+
+#create a factor and visualize as a vertical histogram
+survey_data %>% 
+  drop_na(`...16`) %>% 
+  mutate(`...16` = fct_infreq(`...16`) %>% fct_rev()) %>% 
+  ggplot(aes(x = `...16`)) +
+  geom_bar() + 
+  theme_cowplot() +
+  coord_flip() + 
+  labs(x = NULL, caption = "n=33", title = "How would you rate your expertise in working with data \nfrom wearable light loggers?")+
+  theme(plot.title.position = "plot")+
+  scale_y_continuous(breaks = c(0,5,10))
+
+ggsave("figures/02_expertise.pdf", height = 4)
+
+
+```
+
+```{r, relevance}
+#preselect columns
+relevance <- survey_data %>% select(18:27)
+
+
+#rename columns
+relevance <- relevance %>% 
+  rename(
+    "Data collection" = "...18",
+    "Data import" = "...19",
+    "Validation (plausibility checks)" = "...21",
+    "Data cleaning (gaps, irregularities)" = "...20",
+    "Adding and analysing auxiliary data (e.g., sleep/wake)" = "...22",
+    "Processing (e.g., aggregation)" = "...23",
+    "Metrics" = "...24",
+    "Visualizations" = "...25",
+    "Statistical tests" = "...26",
+    "Other" = "...27"
+  )
+
+#reformat to long and drop na
+relevance <- 
+  relevance %>% 
+  pivot_longer(cols = everything(), 
+    names_to = "type", values_to = "score"
+  ) %>% 
+  group_by(type) %>% 
+  summarize(mean_score = mean(as.numeric(score), na.rm = TRUE))
+
+
+#create a factor and visualize as a vertical histogram
+relevance %>% 
+  mutate(type = fct_reorder(type, mean_score) %>% fct_rev()) %>%
+  ggplot(aes(y=type, x=mean_score)) +
+  geom_bar(stat = "identity") + 
+  geom_text(nudge_x = 0.5, aes(label = round(mean_score, 1))) +
+  theme_cowplot() +
+  labs(y = NULL, x = NULL, caption = "n=21, numbers show average score", title = "Which of the following tasks do you routinely perform \nwith wearable light logger data?")+
+  theme(plot.title.position = "plot") +
+  scale_x_continuous(breaks = c(0,5, 10), labels = c("more <-", "relevance/prominence", "-> less"), expand = expansion())+
+  coord_cartesian(xlim = c(0,10), clip = "off")+
+  theme(plot.margin = margin(10,20,10,10) )
+
+ggsave("figures/03_relevance.pdf", height = 5)
+
+
 ```
